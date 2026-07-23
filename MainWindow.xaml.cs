@@ -489,6 +489,7 @@ public partial class MainWindow : Window
 
     private void LaunchEntry(LibraryEntry entry)
     {
+        var compatibilityWasRepaired = false;
         try
         {
             if (entry.CustomProfile != null)
@@ -502,7 +503,8 @@ public partial class MainWindow : Window
                         MessageBoxImage.Warning);
                     if (answer != MessageBoxResult.Yes) return;
                 }
-                LaunchService.Start(entry.CustomProfile);
+                LaunchService.Start(entry.CustomProfile, out var compatibilityRepair);
+                compatibilityWasRepaired = compatibilityRepair.UserRuleChanged;
             }
             else
             {
@@ -522,7 +524,9 @@ public partial class MainWindow : Window
                 });
             }
 
-            DonorRun.Text = $"Iniciando {entry.Name}… El host permanece activo para Remote Play.";
+            DonorRun.Text = compatibilityWasRepaired
+                ? $"Se quitó automáticamente la regla RUNASADMIN de {entry.Name}. Iniciando dentro de Steam…"
+                : $"Iniciando {entry.Name}… El host permanece activo para Remote Play.";
             StartOverlayCompatibilityPump();
         }
         catch (OperationCanceledException)
@@ -819,8 +823,10 @@ public partial class MainWindow : Window
 
             WindowPickerStatus.Text = $"Iniciando «{profile.Name}» dentro de Steam…";
             CloseRunningWindowPicker();
-            var launched = LaunchService.StartTracked(profile);
-            DonorRun.Text = $"{profile.Name} se inició dentro de Steam. El invitado recuperará imagen y controles cuando aparezca su ventana.";
+            var launched = LaunchService.StartTracked(profile, out var compatibilityRepair);
+            DonorRun.Text = compatibilityRepair.UserRuleChanged
+                ? $"Se quitó automáticamente RUNASADMIN y {profile.Name} se inició dentro de Steam."
+                : $"{profile.Name} se inició dentro de Steam. El invitado recuperará imagen y controles cuando aparezca su ventana.";
             StartOverlayCompatibilityPump();
             AppLog.Write($"Restarted an existing application as a tracked donor child. SourcePid={selected.ProcessId}; NewPid={launched.Id}; Path={profile.ExecutablePath}");
         }

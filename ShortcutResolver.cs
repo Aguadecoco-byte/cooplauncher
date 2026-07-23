@@ -144,12 +144,23 @@ public static class LaunchService
 {
     public static Process? Start(CustomLaunchProfile originalProfile)
     {
+        return Start(originalProfile, out _);
+    }
+
+    public static Process? Start(
+        CustomLaunchProfile originalProfile,
+        out AppCompatibilityRepairResult compatibilityRepair)
+    {
         var profile = ShortcutResolver.Refresh(originalProfile);
         var path = profile.ExecutablePath;
         var isUri = Uri.TryCreate(path, UriKind.Absolute, out var uri) && !uri.IsFile;
+        compatibilityRepair = AppCompatibilityRepairResult.NotApplicable(path);
 
         if (!isUri && !File.Exists(path))
             throw new FileNotFoundException("The configured target no longer exists.", path);
+
+        if (!isUri && !profile.RunAsAdministrator)
+            compatibilityRepair = RepairUnelevatedLaunch(path);
 
         var startInfo = new ProcessStartInfo(path)
         {
@@ -180,14 +191,24 @@ public static class LaunchService
     /// </summary>
     public static Process StartTracked(CustomLaunchProfile originalProfile)
     {
+        return StartTracked(originalProfile, out _);
+    }
+
+    public static Process StartTracked(
+        CustomLaunchProfile originalProfile,
+        out AppCompatibilityRepairResult compatibilityRepair)
+    {
         var profile = ShortcutResolver.Refresh(originalProfile);
         var path = profile.ExecutablePath;
+        compatibilityRepair = AppCompatibilityRepairResult.NotApplicable(path);
         if (!File.Exists(path))
             throw new FileNotFoundException("The configured target no longer exists.", path);
         if (!string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase))
             throw new NotSupportedException("Only direct .exe applications can be restarted inside Steam.");
         if (profile.RunAsAdministrator)
             throw new InvalidOperationException("Disable administrator mode before restarting this application inside Steam.");
+
+        compatibilityRepair = RepairUnelevatedLaunch(path);
 
         var startInfo = new ProcessStartInfo(path)
         {
@@ -200,5 +221,27 @@ public static class LaunchService
 
         return Process.Start(startInfo)
             ?? throw new InvalidOperationException("Windows did not start the selected application.");
+    }
+
+    private static AppCompatibilityRepairResult RepairUnelevatedLaunch(string path)
+    {
+        var repair = AppCompatibilityService.RepairForcedAdministratorLayer(path);
+        if (repair.UserRuleChanged)
+        {
+            AppLog.Write(
+                $"Removed a stale per-user RUNASADMIN compatibility rule before launch. " +
+                $"Path={repair.ExecutablePath}; PreviousLayers={repair.PreviousUserLayers ?? "<none>"}; " +
+                $"CurrentLayers={repair.CurrentUserLayers ?? "<none>"}");
+        }
+
+        if (repair.MachineRuleForcesAdministrator)
+        {
+            throw new InvalidOperationException(
+                "Windows obliga a ejecutar este juego como administrador para todos los usuarios. " +
+                "Abre Propiedades > Compatibilidad > Cambiar la configuración para todos los usuarios " +
+                "y desmarca «Ejecutar este programa como administrador».");
+        }
+
+        return repair;
     }
 }

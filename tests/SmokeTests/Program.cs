@@ -40,6 +40,74 @@ try
     Assert(executable.SourceKind == LaunchSourceKind.Executable, "executable kind");
     Assert(!executable.RunAsAdministrator, "executable admin default");
 
+    var compatibilityPath = Path.Combine(directory, "Compatibility Test.exe");
+    using (var layers = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+               AppCompatibilityService.LayersRegistryPath, writable: true))
+    {
+        layers.SetValue(
+            compatibilityPath,
+            "~ HIGHDPIAWARE RUNASADMIN",
+            Microsoft.Win32.RegistryValueKind.String);
+    }
+
+    try
+    {
+        var repaired = AppCompatibilityService.RepairForcedAdministratorLayer(compatibilityPath);
+        Assert(repaired.UserRuleChanged, "RUNASADMIN rule detected and repaired");
+        Assert(
+            string.Equals(repaired.CurrentUserLayers, "~ HIGHDPIAWARE", StringComparison.Ordinal),
+            "unrelated compatibility layers preserved");
+
+        using var layers = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+            AppCompatibilityService.LayersRegistryPath, writable: false);
+        Assert(
+            string.Equals(layers?.GetValue(compatibilityPath) as string, "~ HIGHDPIAWARE", StringComparison.Ordinal),
+            "repaired compatibility rule persisted");
+    }
+    finally
+    {
+        using var layers = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+            AppCompatibilityService.LayersRegistryPath, writable: true);
+        layers?.DeleteValue(compatibilityPath, throwOnMissingValue: false);
+    }
+
+    Assert(
+        AppCompatibilityService.RemoveRunAsAdministratorToken("RUNASADMIN") is null,
+        "standalone RUNASADMIN rule removed completely");
+    Assert(
+        AppCompatibilityService.RemoveRunAsAdministratorToken("WIN7RTM") == "WIN7RTM",
+        "non-admin compatibility rule unchanged");
+
+    var compatibilityLaunchPath = Path.Combine(directory, "Compatibility Launch.exe");
+    File.Copy(
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"),
+        compatibilityLaunchPath);
+    using (var layers = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+               AppCompatibilityService.LayersRegistryPath, writable: true))
+    {
+        layers.SetValue(
+            compatibilityLaunchPath,
+            "RUNASADMIN",
+            Microsoft.Win32.RegistryValueKind.String);
+    }
+
+    try
+    {
+        var compatibilityProfile = ShortcutResolver.Import(compatibilityLaunchPath);
+        compatibilityProfile.Arguments = "/d /c exit 0";
+        using var launched = LaunchService.Start(compatibilityProfile, out var launchRepair);
+        Assert(launchRepair.UserRuleChanged, "launch flow repaired RUNASADMIN");
+        Assert(launched != null, "compatibility test process started");
+        Assert(launched!.WaitForExit(10_000), "compatibility test process exited");
+        Assert(launched.ExitCode == 0, "compatibility test process exit code");
+    }
+    finally
+    {
+        using var layers = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+            AppCompatibilityService.LayersRegistryPath, writable: true);
+        layers?.DeleteValue(compatibilityLaunchPath, throwOnMissingValue: false);
+    }
+
     var trackedProfile = ShortcutResolver.Import(Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"));
     trackedProfile.Arguments = "/d /c exit 0";

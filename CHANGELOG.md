@@ -2,6 +2,13 @@
 
 This changelog describes the adjustments maintained by [Aguadecoco-byte](https://github.com/Aguadecoco-byte) on top of the original [MBaliver/cooplauncher](https://github.com/MBaliver/cooplauncher) project.
 
+## 1.1.2 - 2026-07-22
+
+- Automatically removes stale per-user `RUNASADMIN` compatibility rules before launching an external game configured to run unelevated.
+- Preserves unrelated Windows compatibility layers such as DPI settings.
+- Detects machine-wide administrator rules and explains how to disable them instead of silently launching an unshareable elevated process.
+- Added registry repair smoke tests and visible status/log reporting.
+
 ## 1.1.1 - 2026-07-22
 
 - Replaced the modal open-window picker with an in-window panel so Steam does not switch to `Desktop Placeholder` while choosing an application.

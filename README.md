@@ -47,6 +47,7 @@ The community build is not digitally signed, so Windows may show an unknown-publ
 - Transactional donor installation with SHA-256 validation, rollback, and safe restoration.
 - External `.lnk`, `.exe`, `.bat`, `.cmd`, `.com`, and `.url` entries.
 - Optional per-entry administrator mode with a warning about Windows input isolation.
+- Automatic repair of stale per-user `RUNASADMIN` compatibility rules when an external game is configured to run without elevation.
 - **Open app** workflow that gracefully closes and relaunches an existing application as a direct child of the Steam donor.
 - Atomic configuration saves, corrupt-config recovery, and local diagnostic logs.
 - Per-monitor DPI support and a landscape interface suitable for the Steam overlay.
