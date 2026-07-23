@@ -1,46 +1,61 @@
-name: Build and Release
+name: Build Windows release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   release:
     runs-on: windows-latest
-    permissions:
-      contents: write
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Check out source
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.x
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore and test
+        shell: pwsh
+        run: |
+          dotnet restore RemotePlayLauncher.csproj
+          dotnet build RemotePlayLauncher.csproj -c Release --no-restore
+          dotnet run --project tests/SmokeTests/SmokeTests.csproj -c Release
 
-    - name: Publish Standalone (win-x64)
-      run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o ./publish/Standalone
+      - name: Publish application
+        shell: pwsh
+        run: dotnet publish RemotePlayLauncher.csproj -c Release -r win-x64 --self-contained true -o artifacts/publish
 
-    - name: Publish Small (win-x64)
-      run: dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true -o ./publish/Small
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
 
-    - name: Zip Standalone
-      run: Compress-Archive -Path ./publish/Standalone/* -DestinationPath ./CoopLauncher_Standalone_win-x64.zip
+      - name: Build installer and checksums
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" installer/CoopLauncher.iss
+          $setup = "artifacts/installer/CoopLauncher-Setup-$version.exe"
+          $portable = "artifacts/publish/CoopLauncher.exe"
+          Copy-Item $portable "artifacts/installer/CoopLauncher-Portable-$version.exe"
+          @(
+            (Get-FileHash $setup -Algorithm SHA256).Hash + "  " + (Split-Path $setup -Leaf),
+            (Get-FileHash "artifacts/installer/CoopLauncher-Portable-$version.exe" -Algorithm SHA256).Hash + "  CoopLauncher-Portable-$version.exe"
+          ) | Set-Content "artifacts/installer/SHA256SUMS.txt" -Encoding ascii
 
-    - name: Zip Small
-      run: Compress-Archive -Path ./publish/Small/* -DestinationPath ./CoopLauncher_Small_win-x64.zip
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          CoopLauncher_Standalone_win-x64.zip
-          CoopLauncher_Small_win-x64.zip
-        body_path: README.md
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            artifacts/installer/CoopLauncher-Setup-*.exe `
+            artifacts/installer/CoopLauncher-Portable-*.exe `
+            artifacts/installer/SHA256SUMS.txt `
+            --title "Coop Launcher ${{ github.ref_name }}" `
+            --generate-notes

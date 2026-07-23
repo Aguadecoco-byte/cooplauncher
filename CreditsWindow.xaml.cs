@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -12,6 +13,8 @@ public partial class CreditsWindow : Window
     public CreditsWindow()
     {
         InitializeComponent();
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        VersionText.Text = $"v{version?.Major}.{version?.Minor}.{version?.Build} — compilación mejorada";
     }
 
     protected override void OnSourceInitialized(EventArgs e)

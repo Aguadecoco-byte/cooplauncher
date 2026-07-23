@@ -1,7 +1,7 @@
 <Window x:Class="RemotePlayLauncher.CreditsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Coop Launcher Credits"
+        Title="Acerca de Coop Launcher"
         Width="420" Height="480"
         Icon="pack://application:,,,/icon.ico"
         WindowStartupLocation="CenterOwner"
@@ -33,10 +33,10 @@
             
             <TextBlock Text="Coop Launcher" Foreground="#EBEBEB" FontSize="26" 
                        FontWeight="SemiBold" HorizontalAlignment="Center"/>
-            <TextBlock Text="v1.0.0 — Stable" Foreground="#5F5980" FontSize="14" 
+            <TextBlock x:Name="VersionText" Text="v1.1.0 — compilación mejorada" Foreground="#5F5980" FontSize="14"
                        HorizontalAlignment="Center" Margin="0,8,0,40"/>
 
-            <TextBlock Text="Developed with 💜 by" Foreground="#908CA0" 
+            <TextBlock Text="Proyecto original desarrollado por" Foreground="#908CA0"
                        FontSize="13" HorizontalAlignment="Center"/>
             <TextBlock Text="Matheus Baliver" Foreground="#FFFFFF" 
                        FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,14"/>
@@ -46,7 +46,7 @@
 
             <Border Height="1" Background="#222030" Margin="0,50,0,40" Width="180"/>
 
-            <TextBlock Text="Thank you for using Coop Launcher!" Foreground="#908CA0" 
+            <TextBlock Text="Esta compilación añade reparación de donantes, accesos externos y compatibilidad mejorada con Steam Overlay." Foreground="#908CA0"
                        FontSize="13" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
             
         </StackPanel>

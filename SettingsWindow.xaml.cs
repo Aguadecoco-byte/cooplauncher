@@ -1,35 +1,35 @@
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Windows.Media;
 
 namespace RemotePlayLauncher;
 
 public partial class SettingsWindow : Window
 {
-    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int sz);
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
 
     private readonly List<SteamGame> _allGames;
-    private readonly LauncherConfig  _config;
+    private readonly LauncherConfig _config;
     private SteamGame? _selected;
 
     public SettingsWindow(List<SteamGame> games, LauncherConfig config)
     {
         InitializeComponent();
         _allGames = games;
-        _config   = config;
+        _config = config;
 
-        // Show current donor
-        if (!string.IsNullOrEmpty(config.DonorExePath) && File.Exists(config.DonorExePath))
+        if (!string.IsNullOrWhiteSpace(config.DonorExePath) && File.Exists(config.DonorExePath))
         {
-            CurrentDonorName.Text = Path.GetFileNameWithoutExtension(config.DonorExePath);
+            CurrentDonorName.Text = config.DonorInstallation?.GameName
+                                    ?? Path.GetFileNameWithoutExtension(config.DonorExePath);
             CurrentDonorPath.Text = config.DonorExePath;
         }
 
+        RestoreBtn.IsEnabled = !string.IsNullOrWhiteSpace(config.DonorExePath);
         RenderDonorList(_allGames);
     }
 
@@ -37,102 +37,103 @@ public partial class SettingsWindow : Window
     {
         base.OnSourceInitialized(e);
         var hwnd = new WindowInteropHelper(this).Handle;
-        int on = 1;
-        DwmSetWindowAttribute(hwnd, 20, ref on, 4);
-        try 
-        { 
-            int bg = 0x181112; // Adjusted to match #121118 background
-            DwmSetWindowAttribute(hwnd, 35, ref bg, 4); 
-        } catch { }
+        var on = 1;
+        DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int));
+        try
+        {
+            var background = 0x181112;
+            DwmSetWindowAttribute(hwnd, 35, ref background, sizeof(int));
+        }
+        catch { }
     }
-
-    // ── Render ───────────────────────────────────────────────────────────────
 
     private void RenderDonorList(IEnumerable<SteamGame> games)
     {
-        DonorList.ItemsSource = games.OrderBy(g => g.Name).ToList();
+        DonorList.ItemsSource = games.OrderBy(game => game.Name).ToList();
     }
-
-    // ── Selection ────────────────────────────────────────────────────────────
 
     private void DonorList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _selected = DonorList.SelectedItem as SteamGame;
-        if (_selected == null)
-        {
-            InstallBtn.IsEnabled = false;
-            ActionStatus.Text = "";
-            return;
-        }
-
-        InstallBtn.IsEnabled = true;
-        ActionStatus.Text = $"Will install to: {_selected.GameFolder}";
+        InstallBtn.IsEnabled = _selected != null;
+        ActionStatus.Text = _selected == null ? string.Empty : $"Se instalará en: {_selected.GameFolder}";
     }
-
-    // ── Install ──────────────────────────────────────────────────────────────
 
     private void InstallBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_selected == null) return;
 
-        // Determine the source exe (this running process)
-        var sourceExe = Environment.ProcessPath
-            ?? Process.GetCurrentProcess().MainModule?.FileName;
-
-        if (string.IsNullOrEmpty(sourceExe) || !File.Exists(sourceExe))
-        {
-            ActionStatus.Text = "Could not locate this launcher's .exe. Run the published build to install.";
-            return;
-        }
-
-        // Determine the target: replace the donor's primary exe
-        var target = string.IsNullOrEmpty(_selected.ExecutablePath)
-            ? Path.Combine(_selected.GameFolder, "CoopLauncher.exe")
-            : _selected.ExecutablePath;
-
         try
         {
-            // Backup original
-            if (File.Exists(target) && !File.Exists(target + ".bak"))
-                File.Copy(target, target + ".bak");
+            if (DonorInstallationService.IsRunningFromConfiguredDonor(_config))
+            {
+                MessageBox.Show(
+                    "Para reparar o cambiar el donante sin dejar archivos bloqueados, cierra esta ventana y abre Coop Launcher desde el acceso directo del escritorio.",
+                    "Usa el acceso directo",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
 
-            File.Copy(sourceExe, target, overwrite: true);
+            var state = DonorInstallationService.Install(_selected, _config);
+            CurrentDonorName.Text = _selected.Name;
+            CurrentDonorPath.Text = state.TargetPath;
+            RestoreBtn.IsEnabled = true;
 
-            _config.DonorExePath = target;
-            _config.Save();
-
-            // Refresh current donor display
-            CurrentDonorName.Text = Path.GetFileNameWithoutExtension(target);
-            CurrentDonorPath.Text = target;
-            
             MessageBox.Show(
-                $"✅ Installation Complete!\n\nPlease launch \"{_selected.Name}\" from your Steam Library now to start the Coop Launcher and enable Remote Play Together benefits.",
-                "Coop Launcher Ready",
+                $"Instalación verificada.\n\nAhora inicia \"{_selected.Name}\" desde Steam para usar Remote Play Together.",
+                "Coop Launcher listo",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
 
-            // Shutdown the launcher so that when the user launches from Steam, there's no conflict
             Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
+            AppLog.Write("Donor installation failed.", ex);
             ActionStatus.Text = $"⚠  {ex.Message}";
         }
     }
 
-    // ── Search ────────────────────────────────────────────────────────────────
+    private void RestoreBtn_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (DonorInstallationService.IsRunningFromConfiguredDonor(_config))
+            {
+                MessageBox.Show(
+                    "Cierra el donante y abre Coop Launcher desde el acceso directo del escritorio antes de restaurarlo.",
+                    "El donante está en uso",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            DonorInstallationService.Restore(_config);
+            CurrentDonorName.Text = "Ninguno";
+            CurrentDonorPath.Text = "Selecciona un juego arriba...";
+            RestoreBtn.IsEnabled = false;
+            ActionStatus.Text = "El ejecutable original fue restaurado y verificado.";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write("Donor restore failed.", ex);
+            ActionStatus.Text = $"⚠  {ex.Message}";
+        }
+    }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (SearchHint != null)
             SearchHint.Visibility = string.IsNullOrEmpty(SearchBox.Text)
-                ? Visibility.Visible : Visibility.Collapsed;
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-        var q = SearchBox.Text.Trim().ToLowerInvariant();
-        var filtered = string.IsNullOrEmpty(q)
+        var query = SearchBox.Text.Trim();
+        var filtered = string.IsNullOrEmpty(query)
             ? _allGames
-            : _allGames.Where(g => g.Name.ToLowerInvariant().Contains(q)).ToList();
-        
+            : _allGames.Where(game => game.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+
         RenderDonorList(filtered);
         _selected = null;
         InstallBtn.IsEnabled = false;

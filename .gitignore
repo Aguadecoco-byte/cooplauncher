@@ -9,6 +9,7 @@
 *.sln.doccache
 *.suo
 publish/
+artifacts/
 launcher_config.json
 *.zip
 release.md

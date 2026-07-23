@@ -1,0 +1,16 @@
+# Changelog
+
+## 1.1.1 - 2026-07-22
+
+- Replaced the modal open-window picker with an in-window panel so Steam does not switch to `Desktop Placeholder` while choosing an application.
+- Added a safe workflow that closes and relaunches an existing application as an unelevated direct child of the donor process.
+- Removed the misleading interactive-desktop action and documented Steam Remote Play Together's game-only privacy boundary.
+- Added a Windows Setup executable with desktop and Start Menu shortcuts and uninstall support.
+
+## 1.1.0 - 2026-07-22
+
+- Fixed distorted and clipped Steam Shift+Tab rendering with a hardware-rendered full-frame compatibility surface.
+- Added external shortcut and executable profiles, arguments, working directories, icons, and per-entry administrator mode.
+- Added transactional donor backup, installation, integrity verification, rollback, and restoration.
+- Added atomic configuration persistence, diagnostics, crash logging, DPI awareness, and smoke tests.
+- Removed the embedded SteamGridDB API key.

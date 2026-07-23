@@ -1,14 +1,18 @@
 ﻿<Window x:Class="RemotePlayLauncher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RemotePlayLauncher"
         Title="Coop Launcher"
         Icon="pack://application:,,,/icon.ico"
-        Width="680" Height="780"
-        MinWidth="500" MinHeight="420"
+        Width="1120" Height="720"
+        MinWidth="900" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="#121118"
         ResizeMode="CanResize"
         WindowStyle="SingleBorderWindow"
+        PreviewKeyDown="MainWindow_PreviewKeyDown"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         FontFamily="Segoe UI">
 
     <Window.Resources>
@@ -202,7 +206,9 @@
 
     </Window.Resources>
 
-    <Grid>
+    <Grid x:Name="RootSurface" Background="#121118">
+        <local:OverlayFrameSurface x:Name="OverlayFrame" Panel.ZIndex="-1"/>
+        <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>   <!-- header    -->
             <RowDefinition Height="Auto"/>   <!-- search    -->
@@ -225,18 +231,30 @@
                                FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="RefreshBtn" Content="↻  Refresh"
+                <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="AddGameBtn" Content="＋  Añadir"
+                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                            Click="AddGameBtn_Click"
+                            ToolTip="Añadir accesos directos o ejecutables externos"/>
+                    <Button x:Name="OpenWindowBtn" Content="▣  App abierta"
+                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                            Click="OpenWindowBtn_Click"
+                            ToolTip="Reiniciar una aplicación abierta dentro de la sesión de Steam"/>
+                    <Button x:Name="OverlayBtn" Content="🎮  Controles"
+                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                            Click="OverlayBtn_Click"
+                            ToolTip="Maximizar para abrir el panel de Remote Play con Shift+Tab"/>
+                    <Button x:Name="RefreshBtn" Content="↻  Actualizar"
                             Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
                             Click="RefreshBtn_Click"/>
-                    <Button x:Name="SettingsBtn" Content="⚙  Donor"
+                    <Button x:Name="SettingsBtn" Content="⚙  Donante"
                             Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
                             Click="SettingsBtn_Click"
                             ToolTip="Configure which Steam game hosts Remote Play Together"/>
-                    <Button x:Name="CreditsBtn" Content="📋  Credits"
+                    <Button x:Name="CreditsBtn" Content="Acerca de"
                             Style="{StaticResource HeaderBtn}"
                             Click="CreditsBtn_Click"/>
-                </StackPanel>
+                </WrapPanel>
             </Grid>
         </Border>
 
@@ -250,7 +268,7 @@
                             Margin="16,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="⌕" FontSize="18" Foreground="{StaticResource AccentBrush}"
                                VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <TextBlock x:Name="SearchHint" Text="Search games…"
+                    <TextBlock x:Name="SearchHint" Text="Buscar juegos y aplicaciones…"
                                FontSize="14" Foreground="{StaticResource TextDimBrush}" FontFamily="Segoe UI"
                                VerticalAlignment="Center"/>
                 </StackPanel>
@@ -264,11 +282,11 @@
                       Padding="16,4,16,4">
             <StackPanel x:Name="GameList" Margin="0,4,0,12">
                 <TextBlock x:Name="LoadingText"
-                           Text="Scanning your Steam library…"
+                           Text="Escaneando la biblioteca de Steam…"
                            Foreground="{StaticResource TextDimBrush}" FontSize="14" FontFamily="Segoe UI"
                            HorizontalAlignment="Center" Margin="0,80,0,0"/>
                 <TextBlock x:Name="NoResultsText"
-                           Text="No games match your search."
+                           Text="No hay resultados para esta búsqueda."
                            Foreground="{StaticResource TextDimBrush}" FontSize="14" FontFamily="Segoe UI"
                            HorizontalAlignment="Center" Margin="0,80,0,0"
                            Visibility="Collapsed"/>
@@ -280,8 +298,142 @@
             <TextBlock x:Name="StatusText"
                        Foreground="{StaticResource TextDimBrush}" FontSize="11" FontFamily="Segoe UI"
                        TextWrapping="Wrap">
-                <Run x:Name="DonorRun" Text="No donor configured — click ⚙ Donor to set up."/>
+                <Run x:Name="DonorRun" Text="No hay donante configurado."/>
             </TextBlock>
         </Border>
+        </Grid>
+
+        <!-- This picker deliberately lives inside the donor HWND. Opening a
+             second native window makes Steam Remote Play Together switch to
+             Desktop Placeholder and disable the guest's input. -->
+        <Grid x:Name="WindowPickerOverlay"
+              Panel.ZIndex="30"
+              Visibility="Collapsed"
+              Background="#EE0B0A10">
+            <Border Width="820" MaxWidth="920" MaxHeight="650"
+                    Margin="28" Padding="24"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    CornerRadius="16" Background="#1A1826"
+                    BorderBrush="#403B58" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Abrir una aplicación dentro de Steam"
+                                       Foreground="{StaticResource TextMainBrush}"
+                                       FontSize="21" FontWeight="SemiBold"/>
+                            <TextBlock Margin="0,7,16,0"
+                                       Foreground="{StaticResource TextDimBrush}"
+                                       TextWrapping="Wrap"
+                                       Text="Remote Play Together bloquea las ventanas que ya estaban abiertas. Selecciona una aplicación para cerrarla de forma normal y volver a iniciarla como parte del juego donante; así Steam puede transmitirla y habilitar los controles."/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="✕" Width="42" Height="38"
+                                Style="{StaticResource HeaderBtn}"
+                                Click="WindowPickerCancel_Click"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Margin="0,18,0,12" Padding="12,9"
+                            Background="#252235" CornerRadius="8">
+                        <TextBlock x:Name="WindowPickerStatus"
+                                   Foreground="#C9C5D6" TextWrapping="Wrap"
+                                   Text="Selecciona la aplicación que quieres incorporar a la sesión."/>
+                    </Border>
+
+                    <ListBox x:Name="RunningWindowList" Grid.Row="2"
+                             MinHeight="210" MaxHeight="350"
+                             Background="#121118" BorderBrush="#2D2B3D"
+                             BorderThickness="1" Foreground="{StaticResource TextMainBrush}"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             SelectionChanged="RunningWindowList_SelectionChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="13,10"/>
+                                <Setter Property="Margin" Value="3,2"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="ItemBorder" Padding="{TemplateBinding Padding}"
+                                                    Background="{TemplateBinding Background}"
+                                                    CornerRadius="8">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#29273D"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#3A3654"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontSize="14"
+                                               FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding ExecutablePath}" Margin="0,3,0,0"
+                                               FontSize="11" Foreground="{StaticResource TextDimBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                        <CheckBox x:Name="WindowRestartConsent"
+                                  Foreground="#E8DDBD" VerticalContentAlignment="Center">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Ya guardé mi trabajo. Autorizo cerrar esta aplicación normalmente y volver a abrirla sin permisos de administrador."/>
+                        </CheckBox>
+                        <Border x:Name="DesktopLimitationNotice" Visibility="Collapsed"
+                                Margin="0,10,0,0" Padding="12" CornerRadius="8"
+                                Background="#332A1E" BorderBrush="#6C5430" BorderThickness="1">
+                            <TextBlock Foreground="#F0D59B" TextWrapping="Wrap"
+                                       Text="El escritorio completo no es compatible con invitados de Remote Play Together: Steam lo reemplaza por ‘Host busy’ por privacidad. Para controlar todo el escritorio utiliza Steam Link, Sunshine/Moonlight o una herramienta de escritorio remoto; esta sesión seguirá funcionando para aplicaciones iniciadas desde Coop Launcher."/>
+                        </Border>
+                    </StackPanel>
+
+                    <Grid Grid.Row="4" Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" HorizontalAlignment="Left"
+                                Content="¿Por qué no el escritorio?"
+                                Style="{StaticResource HeaderBtn}"
+                                Click="DesktopExplanation_Click"/>
+                        <Button Grid.Column="1" Content="Actualizar" Margin="0,0,8,0"
+                                Style="{StaticResource HeaderBtn}"
+                                Click="WindowPickerRefresh_Click"/>
+                        <Button Grid.Column="2" Content="Cancelar" Margin="0,0,8,0"
+                                Style="{StaticResource HeaderBtn}"
+                                Click="WindowPickerCancel_Click"/>
+                        <Button x:Name="RestartWindowBtn" Grid.Column="3"
+                                Content="Cerrar y abrir dentro de Steam"
+                                Padding="18,9" Style="{StaticResource HeaderBtn}"
+                                Click="RestartWindowInsideSteam_Click"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

@@ -11,7 +11,6 @@ namespace RemotePlayLauncher;
 /// </summary>
 public static class SteamGridDbService
 {
-    private const string ApiKey  = "3fe8cb1fb0329b929fc9eb4194477038";
     private const string BaseUrl = "https://www.steamgriddb.com/api/v2";
 
     private static readonly HttpClient Http;
@@ -24,8 +23,9 @@ public static class SteamGridDbService
     static SteamGridDbService()
     {
         Http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        Http.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", ApiKey);
+        var apiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
     }
 
     // ── Grids (460×215 landscape banners) ───────────────────────────────────
@@ -37,6 +37,9 @@ public static class SteamGridDbService
     public static async Task<string?> GetGridUrlAsync(string steamAppId)
     {
         lock (Lock) { if (GridCache.TryGetValue(steamAppId, out var c)) return c; }
+
+        if (Http.DefaultRequestHeaders.Authorization == null)
+            return null;
 
         await Throttle.WaitAsync();
         try
@@ -62,6 +65,9 @@ public static class SteamGridDbService
     public static async Task<string?> GetIconUrlAsync(string steamAppId)
     {
         lock (Lock) { if (IconCache.TryGetValue(steamAppId, out var c)) return c; }
+
+        if (Http.DefaultRequestHeaders.Authorization == null)
+            return null;
 
         await Throttle.WaitAsync();
         try

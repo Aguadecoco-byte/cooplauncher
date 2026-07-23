@@ -58,6 +58,20 @@ public static class SteamDiscovery
 
     public static string? GetSteamPath()
     {
+        try
+        {
+            using var userKey = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam");
+            var userPath = userKey?.GetValue("SteamPath") as string
+                           ?? userKey?.GetValue("InstallPath") as string;
+            userPath = userPath?.Replace('/', '\\');
+            if (!string.IsNullOrWhiteSpace(userPath) && Directory.Exists(userPath))
+            {
+                SteamBasePath = userPath;
+                return userPath;
+            }
+        }
+        catch (Exception ex) { AppLog.Write("Steam could not be read from HKCU.", ex); }
+
         foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
         {
             try
@@ -70,7 +84,7 @@ public static class SteamDiscovery
                     return p;
                 }
             }
-            catch { }
+            catch (Exception ex) { AppLog.Write($"Steam registry view {view} could not be read.", ex); }
         }
         foreach (var d in new[] { @"C:\Program Files (x86)\Steam", @"C:\Program Files\Steam" })
         {
@@ -106,7 +120,11 @@ public static class SteamDiscovery
             }
         }
 
-        return results.OrderBy(g => g.Name).ToList();
+        return results
+            .GroupBy(game => game.AppId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
     }
 
     private static List<string> GetLibraries(string steamPath)
@@ -129,7 +147,8 @@ public static class SteamDiscovery
                     libPath = val.Value<string>();
 
                 libPath = libPath?.Replace("\\\\", "\\");
-                if (!string.IsNullOrEmpty(libPath) && Directory.Exists(libPath) && !libs.Contains(libPath))
+                if (!string.IsNullOrEmpty(libPath) && Directory.Exists(libPath)
+                    && !libs.Contains(libPath, StringComparer.OrdinalIgnoreCase))
                     libs.Add(libPath);
             }
         }
@@ -157,7 +176,17 @@ public static class SteamDiscovery
 
     private static string? FindExe(string folder, string gameName)
     {
-        var exes = Directory.EnumerateFiles(folder, "*.exe", SearchOption.TopDirectoryOnly).ToList();
+        var excludedNames = new[]
+        {
+            "crash", "report", "unitycrashhandler", "unins", "uninstall",
+            "launcher", "setup", "redist", "benchmark", "config"
+        };
+        var allExes = Directory.EnumerateFiles(folder, "*.exe", SearchOption.TopDirectoryOnly).ToList();
+        var exes = allExes
+            .Where(path => !excludedNames.Any(fragment =>
+                Path.GetFileNameWithoutExtension(path).Contains(fragment, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (exes.Count == 0) exes = allExes;
         if (exes.Count == 0) return null;
         if (exes.Count == 1) return exes[0];
         var clean = Strip(gameName);
