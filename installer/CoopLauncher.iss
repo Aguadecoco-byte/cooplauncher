@@ -1,6 +1,6 @@
 #define MyAppName "Coop Launcher"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.3"
+  #define MyAppVersion "1.1.4"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\artifacts\publish"

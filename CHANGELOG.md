@@ -2,6 +2,14 @@
 
 This changelog describes the adjustments maintained by [Aguadecoco-byte](https://github.com/Aguadecoco-byte) on top of the original [MBaliver/cooplauncher](https://github.com/MBaliver/cooplauncher) project.
 
+## 1.1.4 - 2026-07-22
+
+- Added a **Repair Steam** button for the confirmed `streaming_client.exe` initialization failure caused by injected Steam modifications.
+- Detects only the known Millennium bootstrapper (`wsock32.dll`) and SteamTools/Vale input shim (`xinput1_4.dll`) from their embedded product metadata.
+- Refuses to alter unknown DLLs, active games, donor sessions, or an ongoing Remote Play connection.
+- Closes Steam gracefully, preserves each conflicting DLL under a reversible backup name, rolls back partial changes on failure, and restarts Steam when appropriate.
+- Shows the repair state directly in the toolbar and recognizes modifications that were already backed up.
+
 ## 1.1.3 - 2026-07-22
 
 - Added an explicit guest mode that closes the donor host before accepting another person's Remote Play Together invitation.

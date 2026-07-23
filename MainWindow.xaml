@@ -219,46 +219,54 @@
         <!-- ══ HEADER ══════════════════════════════════════════════════════ -->
         <Border Grid.Row="0" Background="{StaticResource HeaderBgBrush}" Padding="24,20,24,18">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <StackPanel Grid.Row="0" VerticalAlignment="Center">
                     <TextBlock Text="Coop Launcher"
                                FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextMainBrush}"/>
                     <TextBlock x:Name="SubtitleText" Text="Loading games…"
                                FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0"/>
                 </StackPanel>
 
-                <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="AddGameBtn" Content="＋  Añadir"
-                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
-                            Click="AddGameBtn_Click"
-                            ToolTip="Añadir accesos directos o ejecutables externos"/>
-                    <Button x:Name="OpenWindowBtn" Content="▣  App abierta"
-                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
-                            Click="OpenWindowBtn_Click"
-                            ToolTip="Reiniciar una aplicación abierta dentro de la sesión de Steam"/>
-                    <Button x:Name="OverlayBtn" Content="🎮  Controles"
-                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
-                            Click="OverlayBtn_Click"
-                            ToolTip="Maximizar para abrir el panel de Remote Play con Shift+Tab"/>
-                    <Button x:Name="GuestModeBtn" Content="⇲  Invitado"
-                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
-                            Click="GuestModeBtn_Click"
-                            ToolTip="Cerrar la sesión anfitriona antes de aceptar una invitación de Remote Play"/>
-                    <Button x:Name="RefreshBtn" Content="↻  Actualizar"
-                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
-                            Click="RefreshBtn_Click"/>
-                    <Button x:Name="SettingsBtn" Content="⚙  Donante"
-                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
-                            Click="SettingsBtn_Click"
-                            ToolTip="Configure which Steam game hosts Remote Play Together"/>
-                    <Button x:Name="CreditsBtn" Content="Acerca de"
-                            Style="{StaticResource HeaderBtn}"
-                            Click="CreditsBtn_Click"/>
-                </WrapPanel>
+                <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                    <WrapPanel Orientation="Horizontal">
+                        <Button x:Name="AddGameBtn" Content="＋  Añadir"
+                                Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                                Click="AddGameBtn_Click"
+                                ToolTip="Añadir accesos directos o ejecutables externos"/>
+                        <Button x:Name="OpenWindowBtn" Content="▣  App abierta"
+                                Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                                Click="OpenWindowBtn_Click"
+                                ToolTip="Reiniciar una aplicación abierta dentro de la sesión de Steam"/>
+                        <Button x:Name="OverlayBtn" Content="🎮  Controles"
+                                Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                                Click="OverlayBtn_Click"
+                                ToolTip="Maximizar para abrir el panel de Remote Play con Shift+Tab"/>
+                        <Button x:Name="GuestModeBtn" Content="⇲  Invitado"
+                                Style="{StaticResource HeaderBtn}"
+                                Click="GuestModeBtn_Click"
+                                ToolTip="Cerrar la sesión anfitriona antes de aceptar una invitación de Remote Play"/>
+                    </WrapPanel>
+                    <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button x:Name="RepairSteamBtn" Content="🛠  Reparar Steam"
+                                Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                                Click="RepairSteamBtn_Click"
+                                ToolTip="Detectar y desactivar modificaciones de Steam que bloquean Remote Play"/>
+                        <Button x:Name="RefreshBtn" Content="↻  Actualizar"
+                                Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                                Click="RefreshBtn_Click"/>
+                        <Button x:Name="SettingsBtn" Content="⚙  Donante"
+                                Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                                Click="SettingsBtn_Click"
+                                ToolTip="Configure which Steam game hosts Remote Play Together"/>
+                        <Button x:Name="CreditsBtn" Content="Acerca de"
+                                Style="{StaticResource HeaderBtn}"
+                                Click="CreditsBtn_Click"/>
+                    </WrapPanel>
+                </StackPanel>
             </Grid>
         </Border>
 

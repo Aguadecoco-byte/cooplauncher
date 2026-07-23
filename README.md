@@ -50,6 +50,7 @@ The community build is not digitally signed, so Windows may show an unknown-publ
 - Automatic repair of stale per-user `RUNASADMIN` compatibility rules when an external game is configured to run without elevation.
 - **Open app** workflow that gracefully closes and relaunches an existing application as a direct child of the Steam donor.
 - **Guest mode** that safely closes the donor session before accepting another host's fresh Remote Play Together invitation.
+- **Repair Steam** workflow that detects and reversibly disables the confirmed Millennium/SteamTools DLL conflicts that can terminate `streaming_client.exe` during initialization.
 - Atomic configuration saves, corrupt-config recovery, and local diagnostic logs.
 - Per-monitor DPI support and a landscape interface suitable for the Steam overlay.
 - No embedded SteamGridDB API credential. Set `STEAMGRIDDB_API_KEY` yourself if desired.
@@ -65,6 +66,8 @@ The community build is not digitally signed, so Windows may show an unknown-publ
 For a program that is already open, select **Open app**, save your work, confirm the normal restart, and choose **Close and open inside Steam**. Apps already listed in Coop Launcher should simply be launched from the list.
 
 To join another person's game, close any game launched through Coop Launcher, press **Guest**, and wait until Steam no longer shows the donor as running. Then accept a new Remote Play Together invitation. Coop Launcher deliberately does not force-close games because that could lose unsaved data.
+
+If accepting an invitation briefly opens Steam's streaming client and then immediately returns to the library, open the standalone Coop Launcher and select **Repair Steam**. The repair recognizes only the known Millennium bootstrapper and SteamTools/Vale shim by product metadata, closes Steam normally, renames those DLLs as backups, and starts Steam again. It never deletes the modifications or changes an unknown DLL.
 
 ### Remote desktop limitation
 

@@ -78,6 +78,63 @@ try
         AppCompatibilityService.RemoveRunAsAdministratorToken("WIN7RTM") == "WIN7RTM",
         "non-admin compatibility rule unchanged");
 
+    Assert(
+        SteamConflictRepairService.ClassifyKnownConflict(
+            "wsock32.dll",
+            "Millennium Bootstrapper",
+            "Steam Homebrew") == SteamConflictKind.MillenniumBootstrapper,
+        "Millennium conflict classified");
+    Assert(
+        SteamConflictRepairService.ClassifyKnownConflict(
+            "XINPUT1_4.DLL",
+            "Vale",
+            "Vale Corporation") == SteamConflictKind.ValeSteamTools,
+        "Vale conflict classified case-insensitively");
+    Assert(
+        SteamConflictRepairService.ClassifyKnownConflict(
+            "wsock32.dll",
+            "Unknown product",
+            "Steam Homebrew") == null,
+        "unknown wsock32 product rejected");
+    Assert(
+        SteamConflictRepairService.ClassifyKnownConflict(
+            "wsock32.dll",
+            "Millennium Bootstrapper",
+            "Unknown company") == null,
+        "unknown wsock32 company rejected");
+    Assert(
+        SteamConflictRepairService.ClassifyKnownConflict(
+            "xinput1_4.dll",
+            "Vale",
+            "Unknown company") == null,
+        "unknown xinput company rejected");
+    Assert(
+        SteamConflictRepairService.ClassifyKnownConflict(
+            "not-the-known-file.dll",
+            "Vale",
+            "Vale Corporation") == null,
+        "unknown DLL name rejected");
+    Assert(
+        SteamConflictRepairService.IsRecognizedDisabledBackupName(
+            "wsock32.dll.cooplauncher-disabled"),
+        "standard disabled backup recognized");
+    Assert(
+        SteamConflictRepairService.IsRecognizedDisabledBackupName(
+            "xinput1_4.dll.cooplauncher-disabled.2"),
+        "sequenced disabled backup recognized");
+    Assert(
+        SteamConflictRepairService.IsRecognizedDisabledBackupName(
+            "wsock32.dll.disabled-for-remoteplay-test-20260722"),
+        "legacy diagnostic backup recognized");
+    Assert(
+        !SteamConflictRepairService.IsRecognizedDisabledBackupName(
+            "wsock32.dll.disabled-by-someone-else"),
+        "unrecognized backup name rejected");
+    Assert(
+        !SteamConflictRepairService.IsRecognizedDisabledBackupName(
+            "other.dll.cooplauncher-disabled"),
+        "unknown disabled DLL rejected");
+
     var compatibilityLaunchPath = Path.Combine(directory, "Compatibility Launch.exe");
     File.Copy(
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"),

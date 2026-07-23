@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private readonly List<Process> _launchedProcesses = [];
     private int _loadGeneration;
     private bool _windowRestartInProgress;
+    private bool _steamRepairInProgress;
 
     public MainWindow()
     {
@@ -47,6 +48,7 @@ public partial class MainWindow : Window
         _overlayPump.Tick += OverlayPump_Tick;
 
         Loaded += MainWindow_Loaded;
+        Closing += MainWindow_Closing;
         Closed += MainWindow_Closed;
         UpdateDonorStatus();
     }
@@ -75,6 +77,7 @@ public partial class MainWindow : Window
             StartOverlayCompatibilityPump();
         }
 
+        UpdateSteamRepairStatus();
         var dpi = VisualTreeHelper.GetDpi(this);
         AppLog.Write($"Main window loaded. Donor={_isDonorSession}; DPI={dpi.PixelsPerInchX:0}x{dpi.PixelsPerInchY:0}; size={ActualWidth:0}x{ActualHeight:0} DIPs.");
         await LoadGamesAsync();
@@ -90,6 +93,14 @@ public partial class MainWindow : Window
             catch { }
         }
         _launchedProcesses.Clear();
+    }
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (!_steamRepairInProgress) return;
+
+        e.Cancel = true;
+        DonorRun.Text = "La reparación de Steam sigue en curso. Espera a que termine antes de cerrar Coop Launcher.";
     }
 
     private void OverlayPump_Tick(object? sender, EventArgs e)
@@ -948,6 +959,130 @@ public partial class MainWindow : Window
         Application.Current.Shutdown();
     }
 
+    private async void RepairSteamBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_steamRepairInProgress) return;
+        if (_isDonorSession)
+        {
+            MessageBox.Show(
+                "La reparación no puede ejecutarse desde el juego donante.\n\n" +
+                "Cierra primero las aplicaciones abiertas, pulsa «Invitado» y después abre Coop Launcher desde el acceso directo del escritorio.",
+                "Cierra la sesión anfitriona",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        SteamConflictInspection inspection;
+        try
+        {
+            inspection = SteamConflictRepairService.Inspect();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write("Steam conflict inspection failed.", ex);
+            MessageBox.Show(
+                "No se pudo revisar la instalación de Steam:\n\n" + ex.Message,
+                "Reparar Steam",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        if (inspection.ActiveConflicts.Count == 0)
+        {
+            var message = inspection.DisabledBackups.Count > 0
+                ? "Steam ya está reparado. Las modificaciones conflictivas permanecen respaldadas y desactivadas."
+                : "No se detectaron las modificaciones conocidas de Millennium o SteamTools que bloquean Remote Play.";
+            MessageBox.Show(message, "Reparar Steam", MessageBoxButton.OK, MessageBoxImage.Information);
+            UpdateSteamRepairStatus();
+            return;
+        }
+
+        if (inspection.RunningAppId != 0 || IsProcessRunning("streaming_client"))
+        {
+            MessageBox.Show(
+                "Steam tiene un juego o una sesión de Remote Play activa. Ciérrala completamente y vuelve a intentarlo; " +
+                "Coop Launcher no terminará una partida a la fuerza.",
+                "Steam está ocupado",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var conflictNames = string.Join(
+            "\n",
+            inspection.ActiveConflicts.Select(conflict => "• " + conflict.DisplayName));
+        var answer = MessageBox.Show(
+            "Se detectaron modificaciones que pueden cerrar el cliente de Remote Play durante «Initializing player»:\n\n" +
+            conflictNames +
+            "\n\nCoop Launcher cerrará Steam normalmente, renombrará estas DLL como respaldo y volverá a iniciar Steam. " +
+            "No se borrarán juegos, cuentas ni archivos originales.\n\n¿Continuar?",
+            "Reparar Remote Play de Steam",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.OK) return;
+
+        _steamRepairInProgress = true;
+        RootSurface.IsEnabled = false;
+        RepairSteamBtn.Content = "Reparando…";
+        try
+        {
+            var result = await SteamConflictRepairService.RepairAsync(CancellationToken.None);
+            AppLog.Write(
+                $"Steam conflict repair finished. Success={result.Success}; Changed={result.Changed}; " +
+                $"SteamRestarted={result.SteamRestarted}; Disabled={string.Join(",", result.DisabledNames)}");
+            MessageBox.Show(
+                result.Message,
+                result.Success ? "Steam reparado" : "No se pudo reparar Steam",
+                MessageBoxButton.OK,
+                result.Success ? MessageBoxImage.Information : MessageBoxImage.Error);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write("Steam conflict repair failed.", ex);
+            MessageBox.Show(
+                "No se pudo completar la reparación. No se eliminaron las copias de seguridad.\n\n" + ex.Message,
+                "Reparar Steam",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            _steamRepairInProgress = false;
+            RootSurface.IsEnabled = true;
+            UpdateSteamRepairStatus();
+        }
+    }
+
+    private void UpdateSteamRepairStatus()
+    {
+        try
+        {
+            var inspection = SteamConflictRepairService.Inspect();
+            if (inspection.ActiveConflicts.Count > 0)
+            {
+                RepairSteamBtn.Content = $"🛠  Reparar Steam ({inspection.ActiveConflicts.Count})";
+                RepairSteamBtn.ToolTip = "Se detectaron modificaciones de Steam que pueden bloquear Remote Play";
+            }
+            else if (inspection.DisabledBackups.Count > 0)
+            {
+                RepairSteamBtn.Content = "✓  Steam reparado";
+                RepairSteamBtn.ToolTip = "Las modificaciones conflictivas están respaldadas y desactivadas";
+            }
+            else
+            {
+                RepairSteamBtn.Content = "🛠  Reparar Steam";
+                RepairSteamBtn.ToolTip = "Buscar modificaciones conocidas que bloquean Remote Play";
+            }
+        }
+        catch
+        {
+            RepairSteamBtn.Content = "🛠  Reparar Steam";
+            RepairSteamBtn.ToolTip = "No se pudo comprobar automáticamente el estado de Steam";
+        }
+    }
+
     private void TrackLaunchedProcess(Process? process)
     {
         if (process == null) return;
@@ -984,6 +1119,16 @@ public partial class MainWindow : Window
     {
         try { return process.ProcessName; }
         catch { return $"PID {process.Id}"; }
+    }
+
+    private static bool IsProcessRunning(string processName)
+    {
+        var processes = Process.GetProcessesByName(processName);
+        try { return processes.Length > 0; }
+        finally
+        {
+            foreach (var process in processes) process.Dispose();
+        }
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
