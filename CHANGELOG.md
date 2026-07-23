@@ -2,6 +2,13 @@
 
 This changelog describes the adjustments maintained by [Aguadecoco-byte](https://github.com/Aguadecoco-byte) on top of the original [MBaliver/cooplauncher](https://github.com/MBaliver/cooplauncher) project.
 
+## 1.1.3 - 2026-07-22
+
+- Added an explicit guest mode that closes the donor host before accepting another person's Remote Play Together invitation.
+- Warns when a game or application launched by Coop Launcher is still running, instead of terminating it and risking data loss.
+- Forces the WPF application to exit with its main window so auxiliary windows cannot accidentally keep the Steam donor AppID active.
+- Added clear instructions to wait until Steam releases the donor and to use a fresh invitation.
+
 ## 1.1.2 - 2026-07-22
 
 - Automatically removes stale per-user `RUNASADMIN` compatibility rules before launching an external game configured to run unelevated.

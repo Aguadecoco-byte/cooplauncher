@@ -244,6 +244,10 @@
                             Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
                             Click="OverlayBtn_Click"
                             ToolTip="Maximizar para abrir el panel de Remote Play con Shift+Tab"/>
+                    <Button x:Name="GuestModeBtn" Content="⇲  Invitado"
+                            Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
+                            Click="GuestModeBtn_Click"
+                            ToolTip="Cerrar la sesión anfitriona antes de aceptar una invitación de Remote Play"/>
                     <Button x:Name="RefreshBtn" Content="↻  Actualizar"
                             Margin="0,0,8,0" Style="{StaticResource HeaderBtn}"
                             Click="RefreshBtn_Click"/>

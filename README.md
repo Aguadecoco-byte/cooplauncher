@@ -49,6 +49,7 @@ The community build is not digitally signed, so Windows may show an unknown-publ
 - Optional per-entry administrator mode with a warning about Windows input isolation.
 - Automatic repair of stale per-user `RUNASADMIN` compatibility rules when an external game is configured to run without elevation.
 - **Open app** workflow that gracefully closes and relaunches an existing application as a direct child of the Steam donor.
+- **Guest mode** that safely closes the donor session before accepting another host's fresh Remote Play Together invitation.
 - Atomic configuration saves, corrupt-config recovery, and local diagnostic logs.
 - Per-monitor DPI support and a landscape interface suitable for the Steam overlay.
 - No embedded SteamGridDB API credential. Set `STEAMGRIDDB_API_KEY` yourself if desired.
@@ -62,6 +63,8 @@ The community build is not digitally signed, so Windows may show an unknown-publ
 5. Press **Shift+Tab**, invite the guest through Remote Play Together, and assign their controller.
 
 For a program that is already open, select **Open app**, save your work, confirm the normal restart, and choose **Close and open inside Steam**. Apps already listed in Coop Launcher should simply be launched from the list.
+
+To join another person's game, close any game launched through Coop Launcher, press **Guest**, and wait until Steam no longer shows the donor as running. Then accept a new Remote Play Together invitation. Coop Launcher deliberately does not force-close games because that could lose unsaved data.
 
 ### Remote desktop limitation
 

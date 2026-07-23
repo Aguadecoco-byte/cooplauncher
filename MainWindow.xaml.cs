@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private LauncherConfig _config;
     private List<SteamGame> _steamGames = [];
     private List<LibraryEntry> _libraryEntries = [];
+    private readonly List<Process> _launchedProcesses = [];
     private int _loadGeneration;
     private bool _windowRestartInProgress;
 
@@ -83,6 +84,12 @@ public partial class MainWindow : Window
     {
         _overlayPump.Stop();
         _loadGeneration++;
+        foreach (var process in _launchedProcesses)
+        {
+            try { process.Dispose(); }
+            catch { }
+        }
+        _launchedProcesses.Clear();
     }
 
     private void OverlayPump_Tick(object? sender, EventArgs e)
@@ -503,7 +510,7 @@ public partial class MainWindow : Window
                         MessageBoxImage.Warning);
                     if (answer != MessageBoxResult.Yes) return;
                 }
-                LaunchService.Start(entry.CustomProfile, out var compatibilityRepair);
+                TrackLaunchedProcess(LaunchService.Start(entry.CustomProfile, out var compatibilityRepair));
                 compatibilityWasRepaired = compatibilityRepair.UserRuleChanged;
             }
             else
@@ -515,13 +522,13 @@ public partial class MainWindow : Window
                     if (string.IsNullOrWhiteSpace(executable)) return;
                 }
 
-                Process.Start(new ProcessStartInfo(executable)
+                TrackLaunchedProcess(Process.Start(new ProcessStartInfo(executable)
                 {
                     WorkingDirectory = Directory.Exists(entry.WorkingDirectory)
                         ? entry.WorkingDirectory
                         : Path.GetDirectoryName(executable) ?? string.Empty,
                     UseShellExecute = true
-                });
+                }));
             }
 
             DonorRun.Text = compatibilityWasRepaired
@@ -824,6 +831,7 @@ public partial class MainWindow : Window
             WindowPickerStatus.Text = $"Iniciando «{profile.Name}» dentro de Steam…";
             CloseRunningWindowPicker();
             var launched = LaunchService.StartTracked(profile, out var compatibilityRepair);
+            TrackLaunchedProcess(launched);
             DonorRun.Text = compatibilityRepair.UserRuleChanged
                 ? $"Se quitó automáticamente RUNASADMIN y {profile.Name} se inició dentro de Steam."
                 : $"{profile.Name} se inició dentro de Steam. El invitado recuperará imagen y controles cuando aparezca su ventana.";
@@ -899,6 +907,83 @@ public partial class MainWindow : Window
 
         Process.Start(new ProcessStartInfo($"steam://run/{appId}") { UseShellExecute = true });
         Application.Current.Shutdown();
+    }
+
+    private void GuestModeBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var activeLaunches = GetActiveLaunchedProcessNames();
+        if (activeLaunches.Count > 0)
+        {
+            MessageBox.Show(
+                "Antes de entrar como invitado, cierra las aplicaciones que abriste desde Coop Launcher:\n\n" +
+                string.Join("\n", activeLaunches.Select(name => "• " + name)) +
+                "\n\nDespués vuelve a pulsar «Invitado». Coop Launcher no las cerrará a la fuerza para evitar perder datos.",
+                "Hay aplicaciones abiertas",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!_isDonorSession)
+        {
+            MessageBox.Show(
+                "Esta copia de Coop Launcher no está ocupando un AppID de Steam.\n\n" +
+                "Cierra cualquier juego que aparezca «En ejecución» en Steam y acepta una invitación nueva. " +
+                "Las invitaciones de sesiones anteriores pueden dejar de ser válidas.",
+                "Modo invitado",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            "Se cerrará Coop Launcher para finalizar la sesión anfitriona y liberar el juego donante.\n\n" +
+            "Espera a que Steam deje de mostrar el donante como «En ejecución» y luego acepta una invitación nueva.",
+            "Entrar como invitado",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Information);
+        if (answer != MessageBoxResult.OK) return;
+
+        AppLog.Write("Guest mode requested. Closing the donor process so Steam can release its AppID.");
+        Application.Current.Shutdown();
+    }
+
+    private void TrackLaunchedProcess(Process? process)
+    {
+        if (process == null) return;
+        _launchedProcesses.Add(process);
+        AppLog.Write($"Tracking launched process for guest-mode safety. PID={process.Id}; Name={SafeProcessName(process)}");
+    }
+
+    private List<string> GetActiveLaunchedProcessNames()
+    {
+        var active = new List<string>();
+        for (var index = _launchedProcesses.Count - 1; index >= 0; index--)
+        {
+            var process = _launchedProcesses[index];
+            try
+            {
+                if (!process.HasExited)
+                {
+                    active.Add(SafeProcessName(process));
+                    continue;
+                }
+            }
+            catch { }
+
+            try { process.Dispose(); }
+            catch { }
+            _launchedProcesses.RemoveAt(index);
+        }
+
+        active.Sort(StringComparer.CurrentCultureIgnoreCase);
+        return active.Distinct(StringComparer.CurrentCultureIgnoreCase).ToList();
+    }
+
+    private static string SafeProcessName(Process process)
+    {
+        try { return process.ProcessName; }
+        catch { return $"PID {process.Id}"; }
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
