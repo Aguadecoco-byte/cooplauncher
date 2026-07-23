@@ -1,5 +1,7 @@
 # Changelog
 
+This changelog describes the adjustments maintained by [Aguadecoco-byte](https://github.com/Aguadecoco-byte) on top of the original [MBaliver/cooplauncher](https://github.com/MBaliver/cooplauncher) project.
+
 ## 1.1.1 - 2026-07-22
 
 - Replaced the modal open-window picker with an in-window panel so Steam does not switch to `Desktop Placeholder` while choosing an application.

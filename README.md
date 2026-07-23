@@ -6,6 +6,27 @@ This fork keeps the original idea by [Matheus Baliver](https://github.com/MBaliv
 
 ![Coop Launcher interface](coop.png)
 
+## Cambios de esta versión respecto al proyecto original
+
+Esta edición es una personalización mantenida por [Aguadecoco-byte](https://github.com/Aguadecoco-byte), basada en el proyecto original de [Matheus Baliver](https://github.com/MBaliver/cooplauncher). Conserva su idea principal —usar un juego compatible como donante para Steam Remote Play Together— y añade los siguientes ajustes:
+
+| Área | Proyecto original | Ajuste incorporado en esta versión |
+| --- | --- | --- |
+| Interfaz de Steam | El overlay de **Shift+Tab** podía aparecer recortado, deformado o superpuesto al launcher. | Superficie de renderizado acelerada a pantalla completa y compatible con el overlay, para mostrar correctamente Remote Play Together y los controles de los jugadores. |
+| Segundo jugador | La interfaz defectuosa podía impedir ver o asignar el mando del invitado. | El panel completo de Steam queda visible para asignar los controles del segundo jugador. |
+| Juegos externos | La lista dependía principalmente de juegos detectados en Steam. | Permite añadir accesos directos del escritorio y archivos `.lnk`, `.exe`, `.bat`, `.cmd`, `.com` y `.url`, con argumentos, carpeta de trabajo e icono. |
+| Permisos | No había una opción individual para elevar aplicaciones. | Cada entrada externa puede configurarse para ejecutarse como administrador, mostrando la advertencia correspondiente sobre el aislamiento de entrada de Windows. |
+| Aplicaciones abiertas | No existía un flujo fiable para compartir una aplicación que ya estaba ejecutándose. | Selector integrado de ventanas y cierre controlado para volver a abrir la aplicación como proceso hijo del donante, de modo que Steam pueda asociarla a la sesión. |
+| Escritorio y ventanas | Se podía interpretar que Steam permitiría controlar cualquier ventana o todo el escritorio. | La interfaz explica el límite real de Remote Play Together y evita ofrecer una función engañosa: Steam desactiva la entrada remota fuera del árbol de procesos del juego. |
+| Instalación en el donante | Reemplazo de archivos con pocas protecciones ante errores. | Copia de seguridad transaccional, comprobación SHA-256, restauración automática si falla la instalación y opción para recuperar el juego original. |
+| Configuración y fallos | Persistencia y diagnóstico básicos. | Guardado atómico, recuperación de configuración dañada, registros locales, captura de fallos y mejor detección de bibliotecas de Steam. |
+| Pantallas modernas | Problemas de escala y distribución en ciertas resoluciones. | Compatibilidad DPI por monitor y diseño horizontal adaptado al overlay de Steam. |
+| Distribución | Compilación manual desde el código fuente. | Instalador `Setup.exe`, accesos directos en escritorio y menú Inicio, desinstalador, pruebas automáticas y flujo de publicación de Releases. |
+
+La implementación también eliminó la credencial de SteamGridDB que estaba incluida en el código. Quien quiera imágenes en línea debe proporcionar su propia variable `STEAMGRIDDB_API_KEY`.
+
+La [comparación completa con el repositorio original](https://github.com/MBaliver/cooplauncher/compare/main...Aguadecoco-byte:cooplauncher:main) permite revisar cada archivo y línea modificada.
+
 ## Download
 
 Download the latest `CoopLauncher-Setup-<version>.exe` from the [Releases page](https://github.com/Aguadecoco-byte/cooplauncher/releases/latest).
